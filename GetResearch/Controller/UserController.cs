@@ -7,6 +7,14 @@ namespace GetResearch.Controller;
 [Route("user")]
 public class UserController(PostgresContext postgresContext) : BaseController
 {
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMe([FromQuery] user model)
+    {
+        var user = await postgresContext.users.FirstOrDefaultAsync(u => u.user_id == model.user_id);
+        if (user == null) await postgresContext.users.AddAsync(new user { user_id = model.user_id });
+        return Ok(user);
+    }
+
     // get user from db
     [HttpGet("db-user")]
     public async Task<IActionResult> GetUser([FromQuery] user model)
@@ -20,7 +28,22 @@ public class UserController(PostgresContext postgresContext) : BaseController
     public async Task<IActionResult> UpdateUser([FromBody] user model)
     {
         var user = await postgresContext.users.FirstOrDefaultAsync(u => u.user_id == model.user_id);
-        if (user == null) return NotFound();
+        if (user == null)
+        {
+            // 如果用户不存在，则创建一个新用户
+            await postgresContext.users.AddAsync(new user
+            {
+                user_id = model.user_id,
+                professor = model.professor,
+                name = model.name,
+                university = model.university,
+                biography = model.biography,
+                eduemail = model.eduemail
+            });
+            await postgresContext.SaveChangesAsync();
+        }
+
+        ;
         user.professor = model.professor;
         user.name = model.name;
         user.university = model.university;
