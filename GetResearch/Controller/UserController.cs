@@ -41,6 +41,7 @@ public class UserController(PostgresContext postgresContext) : BaseController
                 eduemail = model.eduemail
             });
             await postgresContext.SaveChangesAsync();
+            return Ok();
         }
 
         ;
