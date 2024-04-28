@@ -33,18 +33,29 @@ public class UserController(PostgresContext postgresContext) : BaseController
     [HttpGet("my-applications")]
     public async Task<IActionResult> GetMyApplications([FromQuery] user model)
     {
-        var applicationsID = await postgresContext.applications
-            .Where(w => w.student_id == new Guid(model.user_id))
-            .OrderByDescending(o => o.time)
-            // find all research_id in applications
-            .Select(s => s.research_id)
+        // 首先，获取学生的所有 applications 包括其 research_id 和 status
+        var applications = await postgresContext.applications
+            .Where(a => a.student_id == new Guid(model.user_id))
+            .OrderByDescending(a => a.time)
+            .Select(a => new { a.research_id, a.status })
             .ToListAsync();
 
-        // find all researches by research_id
-        var applications = await postgresContext.researches
-            .Where(w => applicationsID.Contains(w.id))
-            .OrderByDescending(o => o.time)
+        // 将 application 的 research_id 提取出来进行 research 查询
+        var researchIds = applications.Select(a => a.research_id).Distinct().ToList();
+
+        // 查询所有匹配的 research 对象
+        var researches = await postgresContext.researches
+            .Where(r => researchIds.Contains(r.id))
+            .OrderByDescending(r => r.time)
             .ToListAsync();
-        return Ok(applications);
+
+        // 将 researches 和 applications 的 status 信息合并
+        var researchesWithStatus = researches.Select(r => new
+        {
+            Research = r,
+            Status = applications.FirstOrDefault(a => a.research_id == r.id)?.status
+        }).ToList();
+
+        return Ok(researchesWithStatus);
     }
 }
